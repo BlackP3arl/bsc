@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  high
+  medium
+  low
+}
+
+model Perspective {
+  id           String      @id @default(uuid())
+  name         String      @db.VarChar(100) @unique
+  color_bg     String      @db.VarChar(7)
+  color_bar    String      @db.VarChar(7)
+  color_header String      @db.VarChar(7)
+  display_order Int
+  initiatives  Initiative[]
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  @@map("perspectives")
+}
+
+model Initiative {
+  id            String     @id @default(uuid())
+  code          String     @db.VarChar(10) @unique
+  name          String     @db.VarChar(255)
+  description   String?    @db.Text
+  perspective_id String
+  perspective   Perspective @relation(fields: [perspective_id], references: [id], onDelete: Cascade)
+  target_kpi    String?    @db.VarChar(100)
+  estimated_effort String? @db.VarChar(50)
+  priority      Priority?
+  display_order Int
+  schedule      Schedule?
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  @@map("initiatives")
+}
+
+model Schedule {
+  id            String     @id @default(uuid())
+  initiative_id String     @unique
+  initiative    Initiative @relation(fields: [initiative_id], references: [id], onDelete: Cascade)
+  year          Int        @default(2026)
+  start_month   Int
+  end_month     Int
+  notes         String?    @db.Text
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  @@map("schedules")
+}
+
