@@ -12,8 +12,9 @@
     "install:frontend": "cd frontend && npm ci",
     "install:all": "npm run install:backend && npm run install:frontend",
     "build:frontend": "cd frontend && npm run build",
-    "build": "npm run install:all && npm run build:frontend",
     "prisma:generate": "cd backend && npx prisma generate",
+    "prisma:generate:build": "cd backend && DATABASE_URL='postgresql://dummy:dummy@localhost:5432/dummy' npx prisma generate",
+    "build": "npm run build:frontend && npm run prisma:generate:build",
     "prisma:migrate": "cd backend && npx prisma migrate deploy",
     "start": "cd backend && node src/index.js"
   },

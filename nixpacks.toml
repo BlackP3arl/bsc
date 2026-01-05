@@ -3,13 +3,12 @@ nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = [
-  "npm run install:all",
-  "cd backend && npx prisma generate"
+  "npm run install:all"
 ]
 
 [phases.build]
 cmds = [
-  "npm run build:frontend"
+  "npm run build"
 ]
 
 [start]
