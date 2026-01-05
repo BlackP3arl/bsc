@@ -36,5 +36,6 @@ lerna-debug.log*
 *.sqlite
 
 # Prisma
-backend/prisma/migrations/
+# Note: migrations should be committed for deployment
+# backend/prisma/migrations/
 

@@ -1,0 +1,24 @@
+{
+  "name": "ict-scorecard-gantt",
+  "version": "1.0.0",
+  "description": "ICT Scorecard Gantt Chart Application",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "install:backend": "cd backend && npm ci",
+    "install:frontend": "cd frontend && npm ci",
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run install:all && npm run build:frontend",
+    "prisma:generate": "cd backend && npx prisma generate",
+    "prisma:migrate": "cd backend && npx prisma migrate deploy",
+    "start": "cd backend && node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
+
