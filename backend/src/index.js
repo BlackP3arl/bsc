@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import perspectivesRoutes from './routes/perspectives.js';
 import initiativesRoutes from './routes/initiatives.js';
 import schedulesRoutes from './routes/schedules.js';
@@ -28,33 +29,62 @@ app.use('/api/initiatives', initiativesRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/gantt-data', ganttRoutes);
 
-// Health check
+// Health check endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Serve static files from React app in production
 if (isProduction) {
-  const frontendBuildPath = path.join(__dirname, '../../frontend/dist');
-  app.use(express.static(frontendBuildPath));
+  // Try multiple possible paths for frontend build
+  const possiblePaths = [
+    path.join(__dirname, '../../frontend/dist'),
+    path.join(process.cwd(), 'frontend/dist'),
+    path.join(process.cwd(), '../frontend/dist'),
+  ];
   
-  // Serve React app for all non-API routes
-  app.get('*', (req, res) => {
-    // Don't serve index.html for API routes
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ error: 'Not found' });
+  let frontendBuildPath = null;
+  for (const possiblePath of possiblePaths) {
+    if (fs.existsSync(possiblePath)) {
+      frontendBuildPath = possiblePath;
+      break;
     }
-    res.sendFile(path.join(frontendBuildPath, 'index.html'));
-  });
+  }
+  
+  if (frontendBuildPath) {
+    console.log(`Using frontend path: ${frontendBuildPath}`);
+    app.use(express.static(frontendBuildPath));
+    
+    // Serve React app for all non-API routes
+    app.get('*', (req, res, next) => {
+      // Don't serve index.html for API routes
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      res.sendFile(path.join(frontendBuildPath, 'index.html'), (err) => {
+        if (err) {
+          console.error('Error serving index.html:', err);
+          res.status(500).send('Error loading application');
+        }
+      });
+    });
+  } else {
+    console.warn('Frontend build not found. API-only mode.');
+  }
 }
 
 // Error handling middleware
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  if (isProduction) {
-    console.log(`Serving frontend from ${path.join(__dirname, '../../frontend/dist')}`);
-  }
+// Bind to 0.0.0.0 to be accessible from outside the container
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on 0.0.0.0:${PORT}`);
+  console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
+  console.log(`Node version: ${process.version}`);
+  console.log(`Working directory: ${process.cwd()}`);
 });
 
