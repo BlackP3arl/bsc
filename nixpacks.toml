@@ -1,16 +1,25 @@
+# Nixpacks configuration for ICT Scorecard Gantt Application
+# This configuration builds a monorepo with frontend (React/Vite) and backend (Node.js/Express)
+
 [phases.setup]
+# Use Node.js 20 as specified in package.json engines field
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
+# Install dependencies for both backend and frontend
 cmds = [
   "npm run install:all"
 ]
 
 [phases.build]
+# Build frontend (Vite) and generate Prisma client
+# This runs: build:frontend (builds React app) and prisma:generate:build (generates Prisma client)
 cmds = [
   "npm run build"
 ]
 
 [start]
+# Run database migrations and start the server
+# The backend serves the built frontend in production mode
 cmd = "cd backend && npx prisma migrate deploy && cd .. && npm start"
 

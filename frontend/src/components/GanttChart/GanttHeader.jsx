@@ -8,14 +8,14 @@ export const GanttHeader = ({ year = 2026 }) => {
 
   return (
     <div className="sticky top-0 z-20 bg-white border-b-2 border-gray-300 flex">
-      {/* Objectives column header */}
+      {/* Initiatives column header */}
       <div
         className="sticky left-0 z-21 bg-white border-r border-gray-300 flex flex-col"
         style={{ width: `${INITIATIVE_COLUMN_WIDTH}px` }}
       >
         {/* Quarter row placeholder */}
         <div className="flex items-center justify-center border-b border-gray-200" style={{ height: '30px' }}>
-          <span className="text-sm font-semibold text-gray-700">Objectives</span>
+          <span className="text-sm font-semibold text-gray-700">Initiatives</span>
         </div>
         {/* Month row placeholder */}
         <div className="flex items-center justify-center" style={{ height: '30px' }}>

@@ -30,6 +30,17 @@ model Perspective {
   @@map("perspectives")
 }
 
+model Team {
+  id          String              @id @default(uuid())
+  name        String              @db.VarChar(100) @unique
+  color       String              @db.VarChar(7)
+  initiatives InitiativeTeam[]
+  created_at  DateTime            @default(now())
+  updated_at  DateTime            @updatedAt
+
+  @@map("teams")
+}
+
 model Initiative {
   id            String     @id @default(uuid())
   code          String     @db.VarChar(10) @unique
@@ -37,6 +48,7 @@ model Initiative {
   description   String?    @db.Text
   perspective_id String
   perspective   Perspective @relation(fields: [perspective_id], references: [id], onDelete: Cascade)
+  teams         InitiativeTeam[]
   target_kpi    String?    @db.VarChar(100)
   estimated_effort String? @db.VarChar(50)
   priority      Priority?
@@ -46,6 +58,18 @@ model Initiative {
   updated_at    DateTime   @updatedAt
 
   @@map("initiatives")
+}
+
+model InitiativeTeam {
+  id            String     @id @default(uuid())
+  initiative_id String
+  team_id       String
+  initiative    Initiative @relation(fields: [initiative_id], references: [id], onDelete: Cascade)
+  team          Team      @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  created_at    DateTime   @default(now())
+
+  @@unique([initiative_id, team_id])
+  @@map("initiative_teams")
 }
 
 model Schedule {
@@ -61,4 +85,5 @@ model Schedule {
 
   @@map("schedules")
 }
+
 

@@ -11,6 +11,11 @@ router.get('/', async (req, res, next) => {
       include: {
         initiatives: {
           include: {
+            teams: {
+              include: {
+                team: true,
+              },
+            },
             schedule: true,
           },
           orderBy: {
@@ -23,11 +28,21 @@ router.get('/', async (req, res, next) => {
       },
     });
 
-    res.json(perspectives);
+    // Transform teams array to match frontend expectations
+    const transformedPerspectives = perspectives.map((perspective) => ({
+      ...perspective,
+      initiatives: perspective.initiatives.map((initiative) => ({
+        ...initiative,
+        teams: initiative.teams.map((it) => it.team),
+      })),
+    }));
+
+    res.json(transformedPerspectives);
   } catch (error) {
     next(error);
   }
 });
 
 export default router;
+
 

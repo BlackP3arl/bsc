@@ -8,12 +8,13 @@ const PERSPECTIVE_CODE_PREFIX = {
   'Organization': 'O',
 };
 
-export const InitiativeForm = ({ initiative, perspectives, initiatives, onSubmit, onCancel }) => {
+export const InitiativeForm = ({ initiative, perspectives, initiatives, teams = [], onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     code: '',
     name: '',
     description: '',
     perspective_id: '',
+    team_ids: [],
     target_kpi: '',
     estimated_effort: '',
     priority: 'medium',
@@ -55,11 +56,19 @@ export const InitiativeForm = ({ initiative, perspectives, initiatives, onSubmit
   useEffect(() => {
     if (initiative) {
       // Editing mode - use existing values
+      // Handle both old format (team_id) and new format (teams array)
+      const teamIds = initiative.teams 
+        ? initiative.teams.map((team) => team.id)
+        : initiative.team_id 
+        ? [initiative.team_id]
+        : [];
+      
       setFormData({
         code: initiative.code || '',
         name: initiative.name || '',
         description: initiative.description || '',
         perspective_id: initiative.perspective_id || '',
+        team_ids: teamIds,
         target_kpi: initiative.target_kpi || '',
         estimated_effort: initiative.estimated_effort || '',
         priority: initiative.priority || 'medium',
@@ -72,6 +81,7 @@ export const InitiativeForm = ({ initiative, perspectives, initiatives, onSubmit
         name: '',
         description: '',
         perspective_id: '',
+        team_ids: [],
         target_kpi: '',
         estimated_effort: '',
         priority: 'medium',
@@ -124,7 +134,10 @@ export const InitiativeForm = ({ initiative, perspectives, initiatives, onSubmit
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validate()) {
-      onSubmit(formData);
+      // Ensure team_ids is an array
+      const submitData = { ...formData };
+      submitData.team_ids = Array.isArray(submitData.team_ids) ? submitData.team_ids : [];
+      onSubmit(submitData);
     }
   };
 
@@ -169,6 +182,55 @@ export const InitiativeForm = ({ initiative, perspectives, initiatives, onSubmit
           {!initiative && (
             <p className="mt-1 text-xs text-gray-500">
               Select a perspective to automatically generate the code
+            </p>
+          )}
+        </div>
+
+        {/* Team Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Teams
+          </label>
+          <div className="border border-gray-300 rounded-md min-h-[42px] px-3 py-2">
+            {teams.length === 0 ? (
+              <span className="text-sm text-gray-500">No teams available</span>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {teams.map((team) => {
+                  const isSelected = formData.team_ids.includes(team.id);
+                  return (
+                    <button
+                      key={team.id}
+                      type="button"
+                      onClick={() => {
+                        const newTeamIds = isSelected
+                          ? formData.team_ids.filter((id) => id !== team.id)
+                          : [...formData.team_ids, team.id];
+                        handleChange('team_ids', newTeamIds);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm border transition-colors ${
+                        isSelected
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: team.color }}
+                      />
+                      <span>{team.name}</span>
+                      {isSelected && (
+                        <span className="text-blue-600">✓</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          {formData.team_ids.length > 0 && (
+            <p className="mt-1 text-xs text-gray-500">
+              {formData.team_ids.length} team{formData.team_ids.length !== 1 ? 's' : ''} selected
             </p>
           )}
         </div>

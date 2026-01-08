@@ -12,6 +12,11 @@ router.get('/', async (req, res, next) => {
     const initiatives = await prisma.initiative.findMany({
       include: {
         perspective: true,
+        teams: {
+          include: {
+            team: true,
+          },
+        },
         schedule: true,
       },
       orderBy: {
@@ -19,7 +24,13 @@ router.get('/', async (req, res, next) => {
       },
     });
 
-    res.json(initiatives);
+    // Transform teams array to match frontend expectations
+    const transformedInitiatives = initiatives.map((initiative) => ({
+      ...initiative,
+      teams: initiative.teams.map((it) => it.team),
+    }));
+
+    res.json(transformedInitiatives);
   } catch (error) {
     next(error);
   }
@@ -33,6 +44,11 @@ router.get('/:id', async (req, res, next) => {
       where: { id },
       include: {
         perspective: true,
+        teams: {
+          include: {
+            team: true,
+          },
+        },
         schedule: true,
       },
     });
@@ -41,7 +57,13 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Initiative not found' });
     }
 
-    res.json(initiative);
+    // Transform teams array to match frontend expectations
+    const transformedInitiative = {
+      ...initiative,
+      teams: initiative.teams.map((it) => it.team),
+    };
+
+    res.json(transformedInitiative);
   } catch (error) {
     next(error);
   }
@@ -54,6 +76,8 @@ router.post(
     body('code').trim().isLength({ min: 1, max: 10 }).withMessage('Code is required and must be 1-10 characters'),
     body('name').trim().isLength({ min: 1, max: 255 }).withMessage('Name is required and must be 1-255 characters'),
     body('perspective_id').isUUID().withMessage('Valid perspective_id is required'),
+    body('team_ids').optional().isArray().withMessage('team_ids must be an array'),
+    body('team_ids.*').optional().isUUID().withMessage('Each team_id must be a valid UUID'),
     body('description').optional().isString(),
     body('target_kpi').optional().isLength({ max: 100 }),
     body('estimated_effort').optional().isLength({ max: 50 }),
@@ -63,15 +87,38 @@ router.post(
   ],
   async (req, res, next) => {
     try {
+      const { team_ids = [], ...initiativeData } = req.body;
+      
+      // Filter out empty/null values and ensure unique
+      const validTeamIds = [...new Set(team_ids.filter((id) => id && id !== ''))];
+
       const initiative = await prisma.initiative.create({
-        data: req.body,
+        data: {
+          ...initiativeData,
+          teams: {
+            create: validTeamIds.map((teamId) => ({
+              team_id: teamId,
+            })),
+          },
+        },
         include: {
           perspective: true,
+          teams: {
+            include: {
+              team: true,
+            },
+          },
           schedule: true,
         },
       });
 
-      res.status(201).json(initiative);
+      // Transform teams array to match frontend expectations
+      const transformedInitiative = {
+        ...initiative,
+        teams: initiative.teams.map((it) => it.team),
+      };
+
+      res.status(201).json(transformedInitiative);
     } catch (error) {
       next(error);
     }
@@ -87,6 +134,8 @@ router.put(
     body('name').optional().trim().isLength({ min: 1, max: 255 }),
     body('description').optional().isString(),
     body('perspective_id').optional().isUUID().withMessage('Valid perspective_id is required'),
+    body('team_ids').optional().isArray().withMessage('team_ids must be an array'),
+    body('team_ids.*').optional().isUUID().withMessage('Each team_id must be a valid UUID'),
     body('target_kpi').optional().isLength({ max: 100 }),
     body('estimated_effort').optional().isLength({ max: 50 }),
     body('priority').optional().isIn(['high', 'medium', 'low']),
@@ -96,16 +145,61 @@ router.put(
   async (req, res, next) => {
     try {
       const { id } = req.params;
+      const { team_ids, ...initiativeData } = req.body;
+
+      // Filter out empty/null values and ensure unique
+      const validTeamIds = team_ids ? [...new Set(team_ids.filter((id) => id && id !== ''))] : undefined;
+
+      // Get current teams to determine what needs to be updated
+      const currentInitiative = await prisma.initiative.findUnique({
+        where: { id },
+        include: {
+          teams: true,
+        },
+      });
+
+      if (!currentInitiative) {
+        return res.status(404).json({ error: 'Initiative not found' });
+      }
+
+      // Update teams if team_ids is provided
+      const updateData = { ...initiativeData };
+      if (validTeamIds !== undefined) {
+        const currentTeamIds = currentInitiative.teams.map((it) => it.team_id);
+        const toConnect = validTeamIds.filter((tid) => !currentTeamIds.includes(tid));
+        const toDisconnect = currentTeamIds.filter((tid) => !validTeamIds.includes(tid));
+
+        updateData.teams = {
+          deleteMany: toDisconnect.length > 0 ? {
+            team_id: { in: toDisconnect },
+          } : undefined,
+          create: toConnect.map((teamId) => ({
+            team_id: teamId,
+          })),
+        };
+      }
+
       const initiative = await prisma.initiative.update({
         where: { id },
-        data: req.body,
+        data: updateData,
         include: {
           perspective: true,
+          teams: {
+            include: {
+              team: true,
+            },
+          },
           schedule: true,
         },
       });
 
-      res.json(initiative);
+      // Transform teams array to match frontend expectations
+      const transformedInitiative = {
+        ...initiative,
+        teams: initiative.teams.map((it) => it.team),
+      };
+
+      res.json(transformedInitiative);
     } catch (error) {
       next(error);
     }

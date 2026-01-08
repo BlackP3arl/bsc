@@ -29,10 +29,33 @@ export const GanttRow = ({
         className="sticky left-0 z-10 bg-white border-r border-gray-300 px-4 py-2 flex items-center min-w-[250px] cursor-pointer hover:bg-gray-100"
         onClick={() => onInitiativeClick(initiative)}
       >
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-900">
-            {initiative.code}
-          </span>
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-900">
+              {initiative.code}
+            </span>
+            {(() => {
+              // Handle both old format (team) and new format (teams array)
+              const initiativeTeams = initiative.teams 
+                ? initiative.teams 
+                : initiative.team 
+                ? [initiative.team]
+                : [];
+              
+              return initiativeTeams.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {initiativeTeams.map((team) => (
+                    <div
+                      key={team.id}
+                      className="w-[9px] h-[9px] rounded-full flex-shrink-0"
+                      style={{ backgroundColor: team.color }}
+                      title={`Team: ${team.name}`}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
           <span className="text-xs text-gray-600 truncate">
             {initiative.name}
           </span>

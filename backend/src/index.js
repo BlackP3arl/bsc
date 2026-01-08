@@ -8,6 +8,7 @@ import perspectivesRoutes from './routes/perspectives.js';
 import initiativesRoutes from './routes/initiatives.js';
 import schedulesRoutes from './routes/schedules.js';
 import ganttRoutes from './routes/gantt.js';
+import teamsRoutes from './routes/teams.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -28,6 +29,7 @@ app.use('/api/perspectives', perspectivesRoutes);
 app.use('/api/initiatives', initiativesRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/gantt-data', ganttRoutes);
+app.use('/api/teams', teamsRoutes);
 
 // Health check endpoints
 app.get('/api/health', (req, res) => {

@@ -38,3 +38,4 @@ export const darkenColor = (hex, percent) => {
   return rgbToHex(r, g, b);
 };
 
+
