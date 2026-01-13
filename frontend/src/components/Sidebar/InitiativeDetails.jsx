@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { updateInitiative } from '../../services/api';
+import { useState, useEffect } from 'react';
+import { updateInitiative, getTeams } from '../../services/api';
 import { MONTHS_SHORT } from '../../utils/dateUtils';
 
 export const InitiativeDetails = ({ initiative, onUpdate }) => {
   const [editing, setEditing] = useState(false);
+  const [teams, setTeams] = useState([]);
   const [formData, setFormData] = useState({
     code: initiative?.code || '',
     name: initiative?.name || '',
@@ -11,7 +12,43 @@ export const InitiativeDetails = ({ initiative, onUpdate }) => {
     target_kpi: initiative?.target_kpi || '',
     estimated_effort: initiative?.estimated_effort || '',
     priority: initiative?.priority || 'medium',
+    team_ids: [],
   });
+
+  // Fetch teams on component mount
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const teamsData = await getTeams();
+        setTeams(teamsData);
+      } catch (error) {
+        console.error('Failed to fetch teams:', error);
+      }
+    };
+    fetchTeams();
+  }, []);
+
+  // Update formData when initiative changes
+  useEffect(() => {
+    if (initiative) {
+      // Handle both old format (team_id) and new format (teams array)
+      const teamIds = initiative.teams 
+        ? initiative.teams.map((team) => team.id)
+        : initiative.team_id 
+        ? [initiative.team_id]
+        : [];
+      
+      setFormData({
+        code: initiative.code || '',
+        name: initiative.name || '',
+        description: initiative.description || '',
+        target_kpi: initiative.target_kpi || '',
+        estimated_effort: initiative.estimated_effort || '',
+        priority: initiative.priority || 'medium',
+        team_ids: teamIds,
+      });
+    }
+  }, [initiative]);
 
   if (!initiative) {
     return (
@@ -23,7 +60,12 @@ export const InitiativeDetails = ({ initiative, onUpdate }) => {
 
   const handleSave = async () => {
     try {
-      await updateInitiative(initiative.id, formData);
+      // Ensure team_ids is an array
+      const updateData = {
+        ...formData,
+        team_ids: Array.isArray(formData.team_ids) ? formData.team_ids : [],
+      };
+      await updateInitiative(initiative.id, updateData);
       setEditing(false);
       if (onUpdate) onUpdate();
     } catch (error) {
@@ -120,6 +162,53 @@ export const InitiativeDetails = ({ initiative, onUpdate }) => {
               <option value="low">Low</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Teams
+            </label>
+            <div className="border border-gray-300 rounded-md min-h-[42px] px-3 py-2">
+              {teams.length === 0 ? (
+                <span className="text-sm text-gray-500">No teams available</span>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {teams.map((team) => {
+                    const isSelected = formData.team_ids.includes(team.id);
+                    return (
+                      <button
+                        key={team.id}
+                        type="button"
+                        onClick={() => {
+                          const newTeamIds = isSelected
+                            ? formData.team_ids.filter((id) => id !== team.id)
+                            : [...formData.team_ids, team.id];
+                          setFormData({ ...formData, team_ids: newTeamIds });
+                        }}
+                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm border transition-colors ${
+                          isSelected
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: team.color }}
+                        />
+                        <span>{team.name}</span>
+                        {isSelected && (
+                          <span className="text-blue-600">✓</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {formData.team_ids.length > 0 && (
+              <p className="mt-1 text-xs text-gray-500">
+                {formData.team_ids.length} team{formData.team_ids.length !== 1 ? 's' : ''} selected
+              </p>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleSave}
@@ -130,6 +219,12 @@ export const InitiativeDetails = ({ initiative, onUpdate }) => {
             <button
               onClick={() => {
                 setEditing(false);
+                // Reset formData to original initiative values
+                const teamIds = initiative.teams 
+                  ? initiative.teams.map((team) => team.id)
+                  : initiative.team_id 
+                  ? [initiative.team_id]
+                  : [];
                 setFormData({
                   code: initiative.code,
                   name: initiative.name,
@@ -137,6 +232,7 @@ export const InitiativeDetails = ({ initiative, onUpdate }) => {
                   target_kpi: initiative.target_kpi || '',
                   estimated_effort: initiative.estimated_effort || '',
                   priority: initiative.priority || 'medium',
+                  team_ids: teamIds,
                 });
               }}
               className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
@@ -183,6 +279,34 @@ export const InitiativeDetails = ({ initiative, onUpdate }) => {
               <p className="text-sm text-gray-900 capitalize">{initiative.priority}</p>
             </div>
           )}
+          {(() => {
+            // Handle both old format (team) and new format (teams array)
+            const initiativeTeams = initiative.teams 
+              ? initiative.teams 
+              : initiative.team 
+              ? [initiative.team]
+              : [];
+            
+            return initiativeTeams.length > 0 && (
+              <div>
+                <span className="text-sm font-medium text-gray-500">Teams:</span>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {initiativeTeams.map((team) => (
+                    <span
+                      key={team.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700"
+                    >
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: team.color }}
+                      />
+                      {team.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           {schedule && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <span className="text-sm font-medium text-gray-500">Schedule:</span>

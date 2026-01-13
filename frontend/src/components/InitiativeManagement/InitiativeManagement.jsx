@@ -4,6 +4,7 @@ import { InitiativeForm } from './InitiativeForm';
 import { TeamManagement } from '../TeamManagement/TeamManagement';
 import { Toast } from '../common/Toast';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { TeamFilter } from '../common/TeamFilter';
 
 export const InitiativeManagement = ({ onDataChange }) => {
   const [initiatives, setInitiatives] = useState([]);
@@ -15,6 +16,7 @@ export const InitiativeManagement = ({ onDataChange }) => {
   const [editingInitiative, setEditingInitiative] = useState(null);
   const [toast, setToast] = useState(null);
   const [selectedPerspective, setSelectedPerspective] = useState('all');
+  const [selectedTeamIds, setSelectedTeamIds] = useState([]);
   const [currentView, setCurrentView] = useState('initiatives'); // 'initiatives' or 'teams'
   const [openTeamDropdown, setOpenTeamDropdown] = useState(null); // Track which initiative's dropdown is open
   const scrollContainerRef = useRef(null); // Ref to track scroll position
@@ -188,11 +190,29 @@ export const InitiativeManagement = ({ onDataChange }) => {
     }
   };
 
-  // Group initiatives by perspective
+  // Helper function to check if initiative has any of the selected teams
+  const hasSelectedTeams = (initiative) => {
+    if (selectedTeamIds.length === 0) return true; // No filter selected, show all
+    
+    // Handle both old format (team) and new format (teams array)
+    const initiativeTeams = initiative.teams 
+      ? initiative.teams 
+      : initiative.team 
+      ? [initiative.team]
+      : [];
+    
+    const initiativeTeamIds = initiativeTeams.map((team) => team.id);
+    return selectedTeamIds.some((teamId) => initiativeTeamIds.includes(teamId));
+  };
+
+  // Group initiatives by perspective and filter by teams
   const groupedInitiatives = perspectives.reduce((acc, perspective) => {
+    const perspectiveInitiatives = initiatives.filter(
+      (init) => init.perspective_id === perspective.id && hasSelectedTeams(init)
+    );
     acc[perspective.id] = {
       perspective,
-      initiatives: initiatives.filter((init) => init.perspective_id === perspective.id),
+      initiatives: perspectiveInitiatives,
     };
     return acc;
   }, {});
@@ -201,6 +221,15 @@ export const InitiativeManagement = ({ onDataChange }) => {
   const filteredGroups = selectedPerspective === 'all' 
     ? Object.values(groupedInitiatives)
     : [groupedInitiatives[selectedPerspective]].filter(Boolean);
+
+  // Toggle team filter
+  const handleToggleTeam = (teamId) => {
+    setSelectedTeamIds((prev) => 
+      prev.includes(teamId)
+        ? prev.filter((id) => id !== teamId)
+        : [...prev, teamId]
+    );
+  };
 
   if (loading) {
     return (
@@ -268,22 +297,29 @@ export const InitiativeManagement = ({ onDataChange }) => {
           </div>
         </div>
 
-        {/* Perspective Filter - Only show for initiatives view */}
+        {/* Filters - Only show for initiatives view */}
         {currentView === 'initiatives' && (
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Filter by Perspective:</label>
-            <select
-              value={selectedPerspective}
-              onChange={(e) => setSelectedPerspective(e.target.value)}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-            >
-              <option value="all">All Perspectives</option>
-              {perspectives.map((perspective) => (
-                <option key={perspective.id} value={perspective.id}>
-                  {perspective.name}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Filter by Perspective:</label>
+              <select
+                value={selectedPerspective}
+                onChange={(e) => setSelectedPerspective(e.target.value)}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="all">All Perspectives</option>
+                {perspectives.map((perspective) => (
+                  <option key={perspective.id} value={perspective.id}>
+                    {perspective.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <TeamFilter
+              teams={teams}
+              selectedTeamIds={selectedTeamIds}
+              onToggleTeam={handleToggleTeam}
+            />
           </div>
         )}
       </div>

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GanttChart } from './components/GanttChart/GanttChart';
 import { InitiativeDetails } from './components/Sidebar/InitiativeDetails';
 import { InitiativeManagement } from './components/InitiativeManagement/InitiativeManagement';
 import { ExportModal } from './components/Modals/ExportModal';
+import { TeamFilter } from './components/common/TeamFilter';
 import { useGanttData } from './hooks/useGanttData';
+import { getTeams } from './services/api';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { ErrorMessage } from './components/common/ErrorMessage';
 
@@ -13,9 +15,54 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [currentView, setCurrentView] = useState('gantt'); // 'gantt' or 'management'
+  const [teams, setTeams] = useState([]);
+  const [selectedTeamIds, setSelectedTeamIds] = useState([]);
+
+  // Fetch teams on component mount
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const teamsData = await getTeams();
+        setTeams(teamsData);
+      } catch (error) {
+        console.error('Failed to fetch teams:', error);
+      }
+    };
+    fetchTeams();
+  }, []);
 
   const handleInitiativeClick = (initiative) => {
     setSelectedInitiative(initiative);
+  };
+
+  // Helper function to check if initiative has any of the selected teams
+  const hasSelectedTeams = (initiative) => {
+    if (selectedTeamIds.length === 0) return true; // No filter selected, show all
+    
+    // Handle both old format (team) and new format (teams array)
+    const initiativeTeams = initiative.teams 
+      ? initiative.teams 
+      : initiative.team 
+      ? [initiative.team]
+      : [];
+    
+    const initiativeTeamIds = initiativeTeams.map((team) => team.id);
+    return selectedTeamIds.some((teamId) => initiativeTeamIds.includes(teamId));
+  };
+
+  // Filter data by selected teams
+  const filteredData = data.map((perspective) => ({
+    ...perspective,
+    initiatives: perspective.initiatives.filter(hasSelectedTeams),
+  }));
+
+  // Toggle team filter
+  const handleToggleTeam = (teamId) => {
+    setSelectedTeamIds((prev) => 
+      prev.includes(teamId)
+        ? prev.filter((id) => id !== teamId)
+        : [...prev, teamId]
+    );
   };
 
   if (loading) {
@@ -37,41 +84,51 @@ function App() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-gray-300 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">ICT Scorecard Gantt Chart</h1>
-        <div className="flex items-center gap-2">
-          {/* View Switcher */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setCurrentView('gantt')}
-              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
-                currentView === 'gantt'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Gantt Chart
-            </button>
-            <button
-              onClick={() => setCurrentView('management')}
-              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
-                currentView === 'management'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Manage Initiatives
-            </button>
+      <header className="bg-white border-b border-gray-300 px-4 py-3">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-bold text-gray-900">ICT Scorecard Gantt Chart</h1>
+          <div className="flex items-center gap-2">
+            {/* View Switcher */}
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setCurrentView('gantt')}
+                className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                  currentView === 'gantt'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Gantt Chart
+              </button>
+              <button
+                onClick={() => setCurrentView('management')}
+                className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                  currentView === 'management'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Manage Initiatives
+              </button>
+            </div>
+            {currentView === 'gantt' && (
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                Export
+              </button>
+            )}
           </div>
-          {currentView === 'gantt' && (
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-            >
-              Export
-            </button>
-          )}
         </div>
+        {/* Team Filter - Only show for Gantt Chart view */}
+        {currentView === 'gantt' && (
+          <TeamFilter
+            teams={teams}
+            selectedTeamIds={selectedTeamIds}
+            onToggleTeam={handleToggleTeam}
+          />
+        )}
       </header>
 
       {/* Main content */}
@@ -101,7 +158,7 @@ function App() {
           {/* Gantt Chart */}
           <div className="flex-1 overflow-hidden">
             <GanttChart
-              data={data}
+              data={filteredData}
               onInitiativeClick={handleInitiativeClick}
             />
           </div>
